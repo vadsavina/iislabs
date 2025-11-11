@@ -1,5 +1,17 @@
-*.csv
+# Python
+venv/
+__pycache__/
+*.pyc
 *.pkl
-.venv*
-*.db
-mlartifacts
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data
+*.csv
+
+# OS
+.DS_Store
+
+# Virtual environment (keep .iislabs)
+# .iislabs/

@@ -1,2 +1,6 @@
 pandas==2.2.2
 matplotlib==3.9.2
+seaborn==0.13.2
+numpy==1.26.4
+bokeh==3.4.0
+jupyter==1.0.0
