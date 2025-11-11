@@ -25,3 +25,11 @@ mlflow/mlruns/
 services/models/model.pkl
 services/ml_service/test_*.json
 services/ml_service/test_*.sh
+
+# Monitoring
+services/prometheus/data/
+services/grafana/data/
+
+# Database (optional)
+services/database/data/
+services/database/pgadmin/

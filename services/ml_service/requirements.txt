@@ -1,5 +1,8 @@
 pandas==2.2.2
+numpy==1.26.4
 fastapi==0.115.5
 uvicorn==0.32.0
 scikit-learn==1.5.2
-cloudpickle
+cloudpickle==3.0.0
+prometheus-fastapi-instrumentator==7.0.0
+prometheus-client==0.21.1

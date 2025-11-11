@@ -4,24 +4,6 @@
 
 Проект посвящён решению задачи классификации цен на мобильные телефоны. С имеющимся датасетом было проведено полноценное исследование, включающее разведочный анализ данных (EDA) и создание моделей машинного обучения.
 
-### Этапы выполнения:
-
-**Этап 1: Разведочный анализ данных (EDA)**
-- Оптимизация использования памяти путём преобразования типов данных
-- Очистка датасета от аномальных значений
-- Выявление закономерностей и корреляций между признаками
-- Визуализация зависимостей между характеристиками устройств и их ценовыми категориями
-- Создание интерактивных графиков для детального анализа
-
-**Этап 2: Разработка и настройка моделей машинного обучения**
-- Создание baseline-модели на основе RandomForestClassifier
-- Feature Engineering с использованием sklearn (PolynomialFeatures, QuantileTransformer, SplineTransformer)
-- Feature Selection с помощью RFE (Recursive Feature Elimination)
-- Логирование всех экспериментов в MLflow
-- Регистрация финальной Production-модели в MLflow
-
-Результат "очищенного датасета" был сохранён в формате pickle. Все эксперименты с моделями логируются в MLflow для отслеживания метрик и управления версиями моделей.
-
 **Исходные данные:** https://www.kaggle.com/datasets/iabhishekofficial/mobile-price-classification
 
 ## Запуск
@@ -290,53 +272,7 @@ docker build . --tag mobile_classifier_model:1
 docker run -p 8000:8000 -v $(pwd)/../models:/models mobile_classifier_model:1
 ```
 
-### Проверка работоспособности сервиса
-
 После запуска контейнера сервис будет доступен по адресу http://localhost:8000
-
-**1. Проверка корневого endpoint:**
-```bash
-curl http://localhost:8000/
-```
-
-Должно вернуться: `{"Hello":"World"}`
-
-**2. Проверка предсказания:**
-```bash
-curl -X POST "http://localhost:8000/api/prediction?mobile_id=1" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "battery_power": 842,
-    "blue": 0,
-    "clock_speed": 2.2,
-    "dual_sim": 0,
-    "fc": 1,
-    "four_g": 0,
-    "int_memory": 7,
-    "m_dep": 0.6,
-    "mobile_wt": 188,
-    "n_cores": 2,
-    "pc": 2,
-    "px_height": 20,
-    "px_width": 756,
-    "ram": 2549,
-    "sc_h": 9,
-    "sc_w": 7,
-    "talk_time": 19,
-    "three_g": 0,
-    "touch_screen": 0,
-    "wifi": 1
-  }'
-```
-
-Ожидаемый ответ:
-```json
-{
-  "mobile_id": 1,
-  "price_range": 1
-}
-```
 
 **3. Интерактивная документация API (Swagger UI):**
 
@@ -350,7 +286,117 @@ Swagger UI позволяет протестировать все endpoints в �
 - `POST /api/prediction` — предсказание ценового диапазона мобильного телефона
   - **Параметры запроса:**
     - `mobile_id` (int) — идентификатор устройства
-  - **Тело запроса (JSON):** все характеристики телефона (20 признаков)
-  - **Ответ:** `mobile_id` и предсказанный `price_range` (0, 1, 2 или 3)
+  - **Тело запроса (JSON):** характеристики телефона
+  - **Ответ:** `mobile_id` и предсказанный `price_range`
+
+---
+
+## Мониторинг
+
+В рамках данного раздела был налажен веб-интерфейс Prometheus, существующий для сбора и хранения метрик, генерируемых сервисами. Файл конфигурации хранится в директории `services/prometheus/`. Доступ к веб-интерфейсу осуществляется по адресу http://localhost:9090.
+
+### Собираемые метрики
+
+1. **model_predictions** (histogram) — гистограмма предсказаний модели по ценовым диапазонам (0, 1, 2, 3)
+2. **http_requests_total** (counter) — общее количество HTTP запросов с разбивкой по методу, статусу и handler
+3. **http_request_duration_seconds** (histogram) — длительность HTTP запросов
+
+### Конфигурация Prometheus
+
+Файл `services/prometheus/prometheus.yml` содержит настройки scraping метрик:
+- Интервал сбора метрик: 15 секунд
+- Target: ML сервис на порту 8000
+- Job name: `ml_service`
+
+---
+
+## Дашборд
+
+В рамках завершающего этапа был разработан сервис Grafana.
+![dashboard](/services/grafana/dashboard.png)
+
+Сервис создан для визуализации метрик путём создания дашбордов. Полученный в результате создания дашборд хранится в `services/grafana/dashboard.json`. Веб-интерфейс запускается по адресу http://localhost:3000. В качестве database используется сервис Prometheus.
+
+### Состав дашборда
+
+Дашборд **"Mobile Price Classification Monitoring"** включает следующие панели:
+
+1. **Model Predictions Distribution** — гистограмма распределения предсказаний модели по ценовым диапазонам
+2. **Request Rate (per minute)** — частота запросов к сервису в минуту
+3. **HTTP Errors** — отображение ошибок 4xx и 5xx
+4. **Request Latency** — латентность запросов (95-й и 99-й перцентили)
+5. **Total Requests** — общее количество обработанных запросов
+
+### Доступ к Grafana
+
+- **URL:** http://localhost:3000
+- **Логин:** admin
+- **Пароль:** admin
+
+---
+
+## Запуск роекта
+
+Для развертывания всех сервисов (ML сервис, Prometheus, Grafana, генератор запросов) используется Docker Compose или Podman Compose.
+
+### Предварительные требования
+
+1. Убедитесь, что модель загружена:
+```bash
+cd services/models
+source ../../.iislabs/bin/activate
+python get_model.py
+```
+
+### Запуск с Podman Compose (рекомендуется)
+
+```bash
+cd services
+
+# Сборка образов
+podman compose build
+
+# Запуск всех сервисов
+podman compose up -d
+
+# Проверка статуса
+podman compose ps
+
+# Просмотр логов
+podman compose logs -f
+
+# Остановка сервисов
+podman compose down
+```
+
+### Запуск с Docker Compose
+
+```bash
+cd services
+
+# Сборка образов
+docker compose build
+
+# Запуск всех сервисов
+docker compose up -d
+
+# Проверка статуса
+docker compose ps
+
+# Просмотр логов
+docker compose logs -f
+
+# Остановка сервисов
+docker compose down
+```
+
+### Доступные сервисы после запуска
+
+| Сервис | URL | Описание |
+|--------|-----|----------|
+| ML Service | http://localhost:8000 | REST API для предсказаний |
+| Swagger UI | http://localhost:8000/docs | Интерактивная документация API |
+| Prometheus | http://localhost:9090 | Веб-интерфейс Prometheus |
+| Grafana | http://localhost:3000 | Дашборд визуализации метрик |
 
 ---
