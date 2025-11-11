@@ -20,3 +20,8 @@ data/clean_data.pkl
 mlflow/mlartifacts/
 mlflow/mlruns.db
 mlflow/mlruns/
+
+# ML Service
+services/models/model.pkl
+services/ml_service/test_*.json
+services/ml_service/test_*.sh

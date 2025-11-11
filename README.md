@@ -65,7 +65,7 @@ jupyter notebook
    source start_mlflow.sh
    ```
 
-3. MLflow UI будет доступен по адресу: **http://127.0.0.1:5000**
+3. MLflow UI будет доступен по адресу: **http://127.0.0.1:5001**
 
 **Примечание:** MLflow должен быть запущен перед выполнением экспериментов в `research/research.ipynb`
 
@@ -235,5 +235,133 @@ jupyter notebook
 ![Прогоны моделей](./research/versions.png)
 
 ![Версии зарегистрированных моделей](./research/runs.png)
+
+---
+
+## Сервис классификации
+
+Для развертывания модели в production создан REST API сервис на базе FastAPI, упакованный в контейнер.
+
+### Описание файлов в папке `services`
+
+**services/ml_service/**
+- `api_handler.py` — включает в себя функции, необходимые для работы модели в FastAPI (загрузка, обработка и предсказание)
+- `main.py` — содержит основные функции для создания предсказаний через REST API
+- `requirements.txt` — содержит необходимые для работы сервиса библиотеки
+- `Dockerfile` — включает в себя необходимые команды для сборки контейнера с определёнными параметрами
+
+**services/models/**
+- `get_model.py` — берёт модель с алиасом `production` из MLflow и записывает её в формат pickle
+- `model.pkl` — содержит модель, полученную в предыдущем пункте (генерируется автоматически)
+
+### Подготовка модели
+
+Перед запуском сервиса необходимо загрузить модель из MLflow:
+
+```bash
+# Убедитесь, что MLflow запущен на порту 5001
+cd mlflow
+source start_mlflow.sh
+
+# В другом терминале загрузите модель
+cd services/models
+python get_model.py
+```
+
+Модель будет сохранена в файл `services/models/model.pkl`
+
+### Создание образа и запуск контейнера
+
+Контейнеризация осуществляется с помощью Podman (или Docker):
+
+```bash
+cd services/ml_service
+
+# Сборка образа
+podman build . --tag mobile_classifier_model:1
+
+# Запуск контейнера
+podman run -p 8000:8000 -v $(pwd)/../models:/models:z mobile_classifier_model:1
+```
+
+**Для Docker (альтернатива):**
+```bash
+docker build . --tag mobile_classifier_model:1
+docker run -p 8000:8000 -v $(pwd)/../models:/models mobile_classifier_model:1
+```
+
+### Проверка работоспособности сервиса
+
+После запуска контейнера сервис будет доступен по адресу http://localhost:8000
+
+**1. Проверка корневого endpoint:**
+```bash
+curl http://localhost:8000/
+```
+
+Должно вернуться: `{"Hello":"World"}`
+
+**2. Проверка предсказания:**
+```bash
+curl -X POST "http://localhost:8000/api/prediction?mobile_id=1" \
+  -H "accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "battery_power": 842,
+    "blue": 0,
+    "clock_speed": 2.2,
+    "dual_sim": 0,
+    "fc": 1,
+    "four_g": 0,
+    "int_memory": 7,
+    "m_dep": 0.6,
+    "mobile_wt": 188,
+    "n_cores": 2,
+    "pc": 2,
+    "px_height": 20,
+    "px_width": 756,
+    "ram": 2549,
+    "sc_h": 9,
+    "sc_w": 7,
+    "talk_time": 19,
+    "three_g": 0,
+    "touch_screen": 0,
+    "wifi": 1
+  }'
+```
+
+Ожидаемый ответ:
+```json
+{
+  "mobile_id": 1,
+  "price_range": 1
+}
+```
+
+**3. Интерактивная документация API (Swagger UI):**
+
+Откройте в браузере: http://localhost:8000/docs
+
+Swagger UI позволяет протестировать все endpoints в удобном интерфейсе.
+
+### API Endpoints
+
+- `GET /` — проверка доступности сервиса
+- `POST /api/prediction` — предсказание ценового диапазона мобильного телефона
+  - **Параметры запроса:**
+    - `mobile_id` (int) — идентификатор устройства
+  - **Тело запроса (JSON):** все характеристики телефона (20 признаков)
+  - **Ответ:** `mobile_id` и предсказанный `price_range` (0, 1, 2 или 3)
+
+### Запуск сервиса локально (без контейнера)
+
+Для разработки и отладки можно запустить сервис без контейнеризации:
+
+```bash
+cd services/ml_service
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Флаг `--reload` автоматически перезагружает сервер при изменении кода.
 
 ---
