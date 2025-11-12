@@ -297,7 +297,7 @@ Swagger UI позволяет протестировать все endpoints в �
 
 ### Собираемые метрики
 
-1. **model_predictions** (histogram) — гистограмма предсказаний модели по ценовым диапазонам (0, 1, 2, 3)
+1. **model_predictions** (histogram) — гистограмма предсказаний модели по ценовым диапазонам
 2. **http_requests_total** (counter) — общее количество HTTP запросов с разбивкой по методу, статусу и handler
 3. **http_request_duration_seconds** (histogram) — длительность HTTP запросов
 
@@ -335,7 +335,7 @@ Swagger UI позволяет протестировать все endpoints в �
 
 ---
 
-## Запуск роекта
+## Запуск проекта
 
 Для развертывания всех сервисов (ML сервис, Prometheus, Grafana, генератор запросов) используется Docker Compose или Podman Compose.
 
